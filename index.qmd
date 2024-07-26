@@ -1,0 +1,64 @@
+---
+format: html
+---
+
+```{r}
+library(stringr)
+options(knitr.kable.NA = '')
+root <- fs::path_abs(".")
+create_Experiments_instructions_DF <- function(variants, repeats, parameter, unit, variant_text, nor_text, variants_filenames_text = "Variants/Filenames") {
+    # Check if variants and repeats are of the same length
+    if (length(variants) != length(repeats)) {
+        stop("Length of variants and repeats must be the same.")
+    }
+    
+    # Create the dataframe
+    df <- data.frame(
+        Variant = rep(variants, times = repeats),
+        Number_of_Repeats = unlist(lapply(repeats, function(r) c(r, rep(NA, r - 1)))),
+        Variants_Filenames = unlist(lapply(seq_along(variants), function(i) {
+            variant <- variants[i]
+            repeatCount <- repeats[i]
+            c(paste(parameter, variant, 1, sep = "-"), 
+              if (repeatCount > 1) paste(parameter, variant, 2:repeatCount, sep = "-") else NULL)
+        }))
+    )
+    
+    # Replace dots with 'd' in Variants_Filenames column
+    df$Variants_Filenames <- gsub("\\.", "d", df$Variants_Filenames)
+    
+    # Initialize a last seen variant variable
+    last_seen_variant <- ""
+    
+    # Format the Variant column
+    df$Variant <- sapply(df$Variant, function(v) {
+        if (v == last_seen_variant) {
+            NA  # Leave cell empty if it is the same as the last seen variant
+        } else {
+            last_seen_variant <<- v
+            v  # Display the variant if it is different from the last seen
+        }
+    })
+    rm(last_seen_variant)
+    # Add unit to header
+    variant_text <- paste0(variant_text, " [", unit, "]")
+    
+    # Rename columns
+    colnames(df) <- c(variant_text, nor_text, variants_filenames_text)
+    
+    return(df)
+}
+
+
+variants <- c(-10,-5,0,5,10)
+repeats <- c(7,7,7,7,7)
+parameter <- "y-axis-tilt-gfa"
+unit <- "°"
+
+df <- create_Experiments_instructions_DF(variants, repeats, parameter, unit, "degrees off of normal", "n","Variants/Filenames")
+knitr::kable(df, caption = "Frontal images: Overview on the groups and repeats for which an image must be taken. For each _Variant_, its value (e.g. -5, 0, 10) denotes the respective angle in degrees of the camera relative to the subject. 0 degrees denotes the lens camera's sensor being perpendicular to the calibration-plate. Positive tilts point the camera upwards toward the ceiling, negative tilts point the camera towards the floor.")
+```
+
+```{r}
+print(df)
+```
